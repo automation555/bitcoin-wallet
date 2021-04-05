@@ -1,5 +1,5 @@
 /*
- * Copyright the original author or authors.
+ * Copyright 2014-2015 the original author or authors.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -12,94 +12,165 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 package de.schildbach.wallet.ui.preference;
 
 import android.app.Activity;
+import android.content.DialogInterface;
+import android.content.DialogInterface.OnClickListener;
+import android.content.Intent;
 import android.os.Bundle;
 import android.preference.Preference;
 import android.preference.PreferenceFragment;
 import android.preference.PreferenceScreen;
-import de.schildbach.wallet.Configuration;
-import de.schildbach.wallet.Constants;
-import de.schildbach.wallet.R;
-import de.schildbach.wallet.WalletApplication;
-import de.schildbach.wallet.service.BlockchainService;
-import de.schildbach.wallet.ui.DialogBuilder;
+
 import org.bitcoinj.crypto.DeterministicKey;
-import org.bitcoinj.script.Script;
-import org.bitcoinj.wallet.DeterministicKeyChain;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.Locale;
+
+import de.schildbach.wallet.Constants;
+import de.schildbach.wallet.WalletApplication;
+import de.schildbach.wallet.ui.DialogBuilder;
+import de.schildbach.wallet.ui.ReportIssueDialogBuilder;
+import de.schildbach.wallet.util.CrashReporter;
+import de.schildbach.wallet_test.R;
 
 /**
  * @author Andreas Schildbach
  */
-public final class DiagnosticsFragment extends PreferenceFragment {
-    private Activity activity;
-    private WalletApplication application;
-    private Configuration config;
+public final class DiagnosticsFragment extends PreferenceFragment
+{
+	private Activity activity;
+	private WalletApplication application;
 
-    private static final String PREFS_KEY_INITIATE_RESET = "initiate_reset";
-    private static final String PREFS_KEY_EXTENDED_PUBLIC_KEY = "extended_public_key";
+	private static final String PREFS_KEY_REPORT_ISSUE = "report_issue";
+	private static final String PREFS_KEY_INITIATE_RESET = "initiate_reset";
+	private static final String PREFS_KEY_EXTENDED_PUBLIC_KEY = "extended_public_key";
+	private static final String PREFS_KEY_SHOW_PAYMENT_CHANNELS = "show_payment_channels";
 
-    private static final Logger log = LoggerFactory.getLogger(DiagnosticsFragment.class);
+	private static final Logger log = LoggerFactory.getLogger(DiagnosticsFragment.class);
 
-    @Override
-    public void onAttach(final Activity activity) {
-        super.onAttach(activity);
-        this.activity = activity;
-        this.application = (WalletApplication) activity.getApplication();
-        this.config = application.getConfiguration();
-    }
+	@Override
+	public void onAttach(final Activity activity)
+	{
+		super.onAttach(activity);
 
-    @Override
-    public void onCreate(final Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
+		this.activity = activity;
+		this.application = (WalletApplication) activity.getApplication();
+	}
 
-        addPreferencesFromResource(R.xml.preference_diagnostics);
-    }
+	@Override
+	public void onCreate(final Bundle savedInstanceState)
+	{
+		super.onCreate(savedInstanceState);
 
-    @Override
-    public boolean onPreferenceTreeClick(final PreferenceScreen preferenceScreen, final Preference preference) {
-        final String key = preference.getKey();
+		addPreferencesFromResource(R.xml.preference_diagnostics);
+	}
 
-        if (PREFS_KEY_INITIATE_RESET.equals(key)) {
-            handleInitiateReset();
-            return true;
-        } else if (PREFS_KEY_EXTENDED_PUBLIC_KEY.equals(key)) {
-            handleExtendedPublicKey();
-            return true;
-        }
+	@Override
+	public boolean onPreferenceTreeClick(final PreferenceScreen preferenceScreen, final Preference preference)
+	{
+		final String key = preference.getKey();
 
-        return false;
-    }
+		if (PREFS_KEY_REPORT_ISSUE.equals(key))
+		{
+			handleReportIssue();
+			return true;
+		}
+		else if (PREFS_KEY_INITIATE_RESET.equals(key))
+		{
+			handleInitiateReset();
+			return true;
+		}
+		else if (PREFS_KEY_EXTENDED_PUBLIC_KEY.equals(key))
+		{
+			handleExtendedPublicKey();
+			return true;
+		}
+		else if (PREFS_KEY_SHOW_PAYMENT_CHANNELS.equals(key)) {
+			handleShowPaymentChannels();
+			return true;
+		}
 
-    private void handleInitiateReset() {
-        final DialogBuilder dialog = DialogBuilder.dialog(activity, R.string.preferences_initiate_reset_title,
-                R.string.preferences_initiate_reset_dialog_message);
-        dialog.setPositiveButton(R.string.preferences_initiate_reset_dialog_positive, (d, which) -> {
-            log.info("manually initiated block chain reset");
-            BlockchainService.resetBlockchain(activity);
-            config.resetBestChainHeightEver();
-            config.updateLastBlockchainResetTime();
-            activity.finish(); // TODO doesn't fully finish prefs on single pane layouts
-        });
-        dialog.setNegativeButton(R.string.button_dismiss, null);
-        dialog.show();
-    }
+		return false;
+	}
 
-    private void handleExtendedPublicKey() {
-        final DeterministicKeyChain activeKeyChain = application.getWallet().getActiveKeyChain();
-        final DeterministicKey extendedKey = activeKeyChain.getWatchingKey();
-        final Script.ScriptType outputScriptType = activeKeyChain.getOutputScriptType();
-        final long creationTimeSeconds = extendedKey.getCreationTimeSeconds();
-        final String base58 = String.format(Locale.US, "%s?c=%d&h=bip32",
-                extendedKey.serializePubB58(Constants.NETWORK_PARAMETERS, outputScriptType), creationTimeSeconds);
-        ExtendedPublicKeyFragment.show(getFragmentManager(), (CharSequence) base58);
-    }
+	private void handleReportIssue()
+	{
+		final ReportIssueDialogBuilder dialog = new ReportIssueDialogBuilder(activity, R.string.report_issue_dialog_title_issue,
+				R.string.report_issue_dialog_message_issue)
+		{
+			@Override
+			protected CharSequence subject()
+			{
+				return Constants.REPORT_SUBJECT_ISSUE + " " + application.packageInfo().versionName;
+			}
+
+			@Override
+			protected CharSequence collectApplicationInfo() throws IOException
+			{
+				final StringBuilder applicationInfo = new StringBuilder();
+				CrashReporter.appendApplicationInfo(applicationInfo, application);
+				return applicationInfo;
+			}
+
+			@Override
+			protected CharSequence collectStackTrace()
+			{
+				return null;
+			}
+
+			@Override
+			protected CharSequence collectDeviceInfo() throws IOException
+			{
+				final StringBuilder deviceInfo = new StringBuilder();
+				CrashReporter.appendDeviceInfo(deviceInfo, activity);
+				return deviceInfo;
+			}
+
+			@Override
+			protected CharSequence collectWalletDump()
+			{
+				return application.getWallet().toString(false, true, true, null);
+			}
+		};
+		dialog.show();
+	}
+
+	private void handleInitiateReset()
+	{
+		final DialogBuilder dialog = new DialogBuilder(activity);
+		dialog.setTitle(R.string.preferences_initiate_reset_title);
+		dialog.setMessage(R.string.preferences_initiate_reset_dialog_message);
+		dialog.setPositiveButton(R.string.preferences_initiate_reset_dialog_positive, new OnClickListener()
+		{
+			@Override
+			public void onClick(final DialogInterface dialog, final int which)
+			{
+				log.info("manually initiated blockchain reset");
+
+				application.resetBlockchain();
+				activity.finish(); // TODO doesn't fully finish prefs on single pane layouts
+			}
+		});
+		dialog.setNegativeButton(R.string.button_dismiss, null);
+		dialog.show();
+	}
+
+	private void handleExtendedPublicKey()
+	{
+		final DeterministicKey extendedKey = application.getWallet().getWatchingKey();
+		final String xpub = String.format(Locale.US, "%s?c=%d&h=bip32", extendedKey.serializePubB58(Constants.NETWORK_PARAMETERS),
+				extendedKey.getCreationTimeSeconds());
+		ExtendedPublicKeyFragment.show(getFragmentManager(), (CharSequence) xpub);
+	}
+
+	private void handleShowPaymentChannels() {
+		activity.startActivity(new Intent(activity, ShowPaymentChannelsActivity.class));
+	}
 }
