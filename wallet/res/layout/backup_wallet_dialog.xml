@@ -1,17 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:fillViewport="true"
-    android:scrollbars="none">
+    android:scrollbars="none" >
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginLeft="@dimen/list_entry_padding_horizontal_lax"
         android:layout_marginRight="@dimen/list_entry_padding_horizontal_lax"
-        android:orientation="vertical">
+        android:orientation="vertical" >
 
         <TextView
             android:layout_width="match_parent"
@@ -26,7 +25,7 @@
             android:layout_marginTop="@dimen/list_entry_padding_vertical"
             android:divider="@drawable/divider_field"
             android:orientation="horizontal"
-            android:showDividers="middle">
+            android:showDividers="middle" >
 
             <EditText
                 android:id="@+id/backup_wallet_dialog_password"
@@ -35,6 +34,7 @@
                 android:layout_weight="3"
                 android:hint="@string/import_export_keys_dialog_password"
                 android:inputType="textPassword"
+                android:importantForAccessibility="no"
                 android:singleLine="true" />
 
             <TextView
@@ -51,7 +51,7 @@
             android:layout_height="wrap_content"
             android:divider="@drawable/divider_field"
             android:orientation="horizontal"
-            android:showDividers="middle">
+            android:showDividers="middle" >
 
             <EditText
                 android:id="@+id/backup_wallet_dialog_password_again"
@@ -60,6 +60,7 @@
                 android:layout_weight="3"
                 android:hint="@string/backup_wallet_dialog_password_again"
                 android:inputType="textPassword"
+                android:importantForAccessibility="no"
                 android:singleLine="true" />
 
             <TextView
@@ -92,4 +93,5 @@
             android:textColor="@color/fg_less_significant"
             android:textSize="@dimen/font_size_small" />
     </LinearLayout>
+
 </ScrollView>
